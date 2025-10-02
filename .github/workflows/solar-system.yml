@@ -9,28 +9,52 @@ on:
     
 jobs:
     unit-testing:
-        name: Unit Testing
-        runs-on: ubuntu-latest
-        steps:
-        - name: Checkout Repository
-          uses: actions/checkout@v4
+      name: Unit Testing
+      runs-on: ubuntu-latest
+      steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-        - name: Setup NodeJS Version
-          uses: actions/setup-node@v4
-          with:
-            node-version: 20
-    
-        - name: Install Dependencies
-          run: npm install
-    
-        - name: Unit Testing
-          run: npm test
+      - name: Setup NodeJS Version
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+  
+      - name: Install Dependencies
+        run: npm install
+  
+      - name: Unit Testing
+        run: npm test
+        
+      - name: Archive Test Result
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mocha-Test-Result
+          path: test-results.xml
           
-        - name: Archive Test Result
-          uses: actions/upload-artifact@v4
-          with:
-            name: Mocha-Test-Result
-            path: test-results.xml
+    dev-deploy:
+      name: dev-deploy
+      runs-on: ubuntu-latest
+      environment: development
+      steps:
+        - name: install kuberntes cluster
+          uses: helm/kind-action@v1
+          
+        - name: deploy to k8s
+          run: |
+            sleep 60
+            kubectl -n kube-system get pod
+            set +e
+            REPO_OWNER_LC="${GITHUB_REPOSITORY_OWNER,,}"
+            kubectl run solar --image ghcr.io/${REPO_OWNER_LC}/solar-system:${{ github.sha }} \
+               --env MONGO_URI=${{ env.MONGO_URI}} \
+               --env MONGO_USERNAME=${{ env.MONGO_USERNAME}} \
+               --env MONGO_PASSWORD=${{ env.MONGO_PASSWORD}}
+            set -e
+            echo "kubectl returned $?"
+            kubectl -n default get pod
+            sleep 10
+
 
 
 
